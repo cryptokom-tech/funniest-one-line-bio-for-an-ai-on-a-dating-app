@@ -22,23 +22,39 @@ LINE = (
 )
 
 
-def valid(line: str) -> bool:
-    """Gate mirror: UTF-8 text, 1-180 chars, one line, not only whitespace."""
+def validate(line: str) -> None:
+    """Gate mirror: raise ValueError unless line is one non-empty line of at most 180 chars."""
     if not line or not line.strip():
-        return False
+        raise ValueError("bio must not be empty")
     if len(line) > MAX_CHARS:
-        return False
+        raise ValueError(f"bio exceeds {MAX_CHARS} characters: {len(line)}")
     if "\n" in line or "\r" in line:
-        return False
-    return True
+        raise ValueError("bio must be a single line")
 
 
 def main() -> int:
-    if not valid(LINE):
+    try:
+        validate(LINE)
+    except ValueError as exc:
+        print(f"invalid bio: {exc}", file=sys.stderr)
         return 1
     os.makedirs("/output", exist_ok=True)
     with open("/output/entry.txt", "w", encoding="utf-8") as f:
         f.write(LINE + "\n")
+    # Read-back verification: confirm exactly what landed on disk.
+    with open("/output/entry.txt", encoding="utf-8") as f:
+        written = f.read()
+    if written != LINE + "\n":
+        print("read-back verification failed: content mismatch", file=sys.stderr)
+        return 1
+    if written.count("\n") != 1 or not written.endswith("\n"):
+        print("read-back verification failed: expected exactly one line", file=sys.stderr)
+        return 1
+    try:
+        validate(written.rstrip("\n"))
+    except ValueError as exc:
+        print(f"read-back verification failed: {exc}", file=sys.stderr)
+        return 1
     return 0
 
 
